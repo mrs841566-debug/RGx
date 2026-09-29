@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مزيل أيقونات الفيديو</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, sans-serif;
+    background: radial-gradient(circle at top, #1a1a1a, #000);
+    color: #fff;
+    min-height: 100vh;
+    padding: 12px;
+  }
+  .container { max-width: 750px; margin: 0 auto; }
+  h1 {
+    text-align: center;
+    color: #d4af37;
+    font-size: 20px;
+    margin-bottom: 4px;
+    text-shadow: 0 0 10px rgba(212,175,55,0.6);
+  }
+  .subtitle { text-align: center; color: #888; font-size: 12px; margin-bottom: 14px; }
+
+  .upload {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background: #0d0d0d;
+    color: #d4af37;
+    border: 2px dashed #444;
+    border-radius: 12px;
+    text-align: center;
+    cursor: pointer;
+    font-weight: bold;
+    margin-bottom: 12px;
+  }
+  .upload input { display: none; }
+
+  /* منطقة الفيديو */
+  .stage {
+    position: relative;
+    background: #000;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 12px;
+    display: none;
+    user-select: none;
+    touch-action: none;
+  }
+  #video { width: 100%; display: block; }
+  #overlayCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    cursor: crosshair;
+  }
+  .drawing-hint {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: rgba(212,175,55,0.9);
+    color: #1a1a1a;
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: bold;
+  }
+
+  .section {
+    background: #111;
+    border: 2px solid #333;
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 12px;
+    display: none;
+  }
+  .section h3 {
+    color: #d4af37;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+
+  .regions-list {
+    max-height: 130px;
+    overflow-y: auto;
+    margin-top: 8px;
+  }
+  .region-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #0d0d0d;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .region-item span { color: #aaa; font-family: monospace; }
+  .region-item button {
+    background: #d42020;
+    color: #fff;
+    border: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0;
+    min-width: 0;
+    flex: none;
+  }
+
+  .btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  button.action {
+    flex: 1;
+    min-width: 110px;
+    padding: 13px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #1a1a1a;
+    background: linear-gradient(145deg, #f9e08a, #d4af37);
+    border: none;
+    border-radius: 30px;
+    box-shadow: 0 0 12px rgba(212,175,55,0.5);
+    cursor: pointer;
+    font-family: inherit;
+    transition: 0.15s;
+  }
+  button.action:active { transform: scale(0.96); }
+  button.action:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.red {
+    background: linear-gradient(145deg, #ff8888, #d42020);
+    color: #fff;
+  }
+  button.dark {
+    background: #1a1a1a;
+    color: #d4af37;
+    border: 2px solid #d4af37;
+  }
+
+  .status {
+    text-align: center;
+    padding: 10px;
+    margin-top: 12px;
+    border-radius: 10px;
+    background: #111;
+    border: 1px solid #333;
+    color: #888;
+    font-size: 13px;
+    font-weight: bold;
+    line-height: 1.5;
+  }
+  .status.ok { border-color: #d4af37; color: #d4af37; }
+  .status.err { border-color: #ff4444; color: #ff8888; }
+  .status.work { border-color: #ffaa00; color: #ffdd88; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity: 0.5; } }
+
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #222;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
+    display: none;
+  }
+  .progress-bar div {
+    height: 100%;
+    background: linear-gradient(90deg, #d4af37, #f9e08a);
+    width: 0%;
+    transition: width 0.3s;
+  }
+
+  .result {
+    display: none;
+    margin-top: 14px;
+  }
+  .result video {
+    width: 100%;
+    border-radius: 12px;
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  .tips {
+    background: #0d0d0d;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 10px;
+    font-size: 12px;
+    color: #999;
+    line-height: 1.7;
+    margin-bottom: 10px;
+  }
+  .tips b { color: #d4af37; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🎯 مزيل أيقونات الفيديو</h1>
+  <p class="subtitle">حدّد الأيقونات بإصبعك — يتم إزالتها دون قص</p>
+
+  <label class="upload">
+    📁 اختر فيديو
+    <input type="file" id="videoInput" accept="video/*">
+  </label>
+
+  <div class="tips" id="tips" style="display:none;">
+    <b>الخطوات:</b><br>
+    1️⃣ ارسم مستطيلًا حول كل أيقونة تريد إزالتها (اسحب بإصبعك)<br>
+    2️⃣ يمكنك إضافة عدة مناطق<br>
+    3️⃣ اضغط "🚀 إزالة الأيقونات" ثم انتظر
+  </div>
+
+  <div class="stage" id="stage">
+    <video id="video" playsinline controls></video>
+    <canvas id="overlayCanvas"></canvas>
+    <div class="drawing-hint">✏️ ارسم حول الأيقونة</div>
+  </div>
+
+  <div class="section" id="regionsSection">
+    <h3>📌 المناطق المحددة (<span id="regionsCount">0</span>)</h3>
+    <div class="regions-list" id="regionsList"></div>
+    <div class="btns">
+      <button class="action dark" id="undoBtn">↶ تراجع</button>
+      <button class="action red" id="clearRegionsBtn">🗑 مسح الكل</button>
+    </div>
+  </div>
+
+  <div class="section" id="exportSection">
+    <h3>🚀 الإزالة والتصدير</h3>
+    <div class="btns">
+      <button class="action" id="processBtn">✨ إزالة الأيقونات</button>
+      <button class="action red" id="stopBtn" disabled>⏹ إيقاف</button>
+    </div>
+    <div class="progress-bar" id="progressBar"><div></div></div>
+    <div class="status" id="status">الحالة: جاهز</div>
+    <div class="result" id="result">
+      <video id="resultVideo" controls></video>
+      <div class="btns">
+        <button class="action" id="downloadBtn">💾 حفظ الفيديو النظيف</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+<script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  const videoInput     = document.getElementById("videoInput");
+  const stage          = document.getElementById("stage");
+  const video          = document.getElementById("video");
+  const overlayCanvas  = document.getElementById("overlayCanvas");
+  const ctx            = overlayCanvas.getContext("2d");
+  const regionsSection = document.getElementById("regionsSection");
+  const regionsList    = document.getElementById("regionsList");
+  const regionsCount   = document.getElementById("regionsCount");
+  const exportSection  = document.getElementById("exportSection");
+  const status         = document.getElementById("status");
+  const progressBar    = document.getElementById("progressBar");
+  const progressInner  = progressBar.querySelector("div");
+  const result         = document.getElementById("result");
+  const resultVideo    = document.getElementById("resultVideo");
+  const tips           = document.getElementById("tips");
+
+  let regions = [];
+  let drawing = false;
+  let startX = 0, startY = 0, currentX = 0, currentY = 0;
+  let sourceURL = null;
+  let resultBlob = null;
+  let ffmpegInstance = null;
+  let isProcessing = false;
+
+  function setStatus(msg, cls) {
+    status.textContent = "الحالة: " + msg;
+    status.className = "status" + (cls ? " " + cls : "");
+  }
+
+  // ===== تحميل الفيديو =====
+  videoInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (sourceURL) URL.revokeObjectURL(sourceURL);
+    sourceURL = URL.createObjectURL(file);
+
+    video.src = sourceURL;
+    stage.style.display = "block";
+    tips.style.display = "block";
+    regionsSection.style.display = "block";
+    exportSection.style.display = "block";
+    result.style.display = "none";
+
+    regions = [];
+    updateRegionsList();
+    setStatus("تم التحميل — ارسم حول الأيقونات", "ok");
+  };
+
+  video.onloadedmetadata = () => {
+    // ضبط حجم canvas ليطابق أبعاد الفيديو المعروضة
+    overlayCanvas.width = video.videoWidth;
+    overlayCanvas.height = video.videoHeight;
+    redrawOverlay();
+  };
+
+  // ===== الرسم على الفيديو =====
+  function getVideoCoords(clientX, clientY) {
+    const rect = video.getBoundingClientRect();
+    const x = (clientX - rect.left) / rect.width  * video.videoWidth;
+    const y = (clientY - rect.top)  / rect.height * video.videoHeight;
+    return {
+      x: Math.max(0, Math.min(video.videoWidth, x)),
+      y: Math.max(0, Math.min(video.videoHeight, y))
+    };
+  }
+
+  function startDraw(clientX, clientY) {
+    if (!video.videoWidth) return;
+    const { x, y } = getVideoCoords(clientX, clientY);
+    drawing = true;
+    startX = x; startY = y;
+    currentX = x; currentY = y;
+  }
+
+  function moveDraw(clientX, clientY) {
+    if (!drawing) return;
+    const { x, y } = getVideoCoords(clientX, clientY);
+    currentX = x; currentY = y;
+    redrawOverlay();
+    drawTempRect();
+  }
+
+  function endDraw() {
+    if (!drawing) return;
+    drawing = false;
+
+    const x = Math.min(startX, currentX);
+    const y = Math.min(startY, currentY);
+    const w = Math.abs(currentX - startX);
+    const h = Math.abs(currentY - startY);
+
+    if (w < 15 || h < 15) {
+      redrawOverlay();
+      return;
+    }
+
+    regions.push({ x, y, w, h });
+    updateRegionsList();
+    redrawOverlay();
+    setStatus("منطقة #" + regions.length + " مضافة", "ok");
+  }
+
+  // أحداث اللمس
+  overlayCanvas.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    startDraw(t.clientX, t.clientY);
+  }, { passive: false });
+
+  overlayCanvas.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    moveDraw(t.clientX, t.clientY);
+  }, { passive: false });
+
+  overlayCanvas.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    endDraw();
+  }, { passive: false });
+
+  // أحداث الفأرة
+  overlayCanvas.addEventListener("mousedown", (e) => {
+    startDraw(e.clientX, e.clientY);
+  });
+  overlayCanvas.addEventListener("mousemove", (e) => {
+    moveDraw(e.clientX, e.clientY);
+  });
+  overlayCanvas.addEventListener("mouseup", endDraw);
+  overlayCanvas.addEventListener("mouseleave", () => { drawing = false; redrawOverlay(); });
+
+  // ===== رسم المناطق =====
+  function redrawOverlay() {
+    ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+    regions.forEach((r, i) => {
+      ctx.fillStyle = "rgba(212,175,55,0.25)";
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+
+      ctx.strokeStyle = "#d4af37";
+      ctx.lineWidth = Math.max(3, overlayCanvas.width / 200);
+      ctx.setLineDash([8, 6]);
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.setLineDash([]);
+
+      // رقم المنطقة
+      const label = String(i + 1);
+      ctx.font = "bold " + Math.max(18, overlayCanvas.width / 35) + "px Arial";
+      const tw = ctx.measureText(label).width;
+      const lh = parseInt(ctx.font) + 8;
+      ctx.fillStyle = "#d4af37";
+      ctx.fillRect(r.x + 4, r.y + 4, tw + 12, lh);
+      ctx.fillStyle = "#1a1a1a";
+      ctx.fillText(label, r.x + 10, r.y + 4 + lh - 8);
+    });
+  }
+
+  function drawTempRect() {
+    const x = Math.min(startX, currentX);
+    const y = Math.min(startY, currentY);
+    const w = Math.abs(currentX - startX);
+    const h = Math.abs(currentY - startY);
+
+    ctx.fillStyle = "rgba(255,50,50,0.25)";
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = "#ff4444";
+    ctx.lineWidth = Math.max(3, overlayCanvas.width / 200);
+    ctx.setLineDash([8, 6]);
+    ctx.strokeRect(x, y, w, h);
+    ctx.setLineDash([]);
+  }
+
+  // ===== إدارة المناطق =====
+  function updateRegionsList() {
+    regionsCount.textContent = regions.length;
+    regionsList.innerHTML = "";
+
+    regions.forEach((r, i) => {
+      const item = document.createElement("div");
+      item.className = "region-item";
+      item.innerHTML = `
+        <span>#${i+1}  x:${Math.round(r.x)} y:${Math.round(r.y)} w:${Math.round(r.w)} h:${Math.round(r.h)}</span>
+      `;
+      const del = document.createElement("button");
+      del.textContent = "×";
+      del.onclick = () => {
+        regions.splice(i, 1);
+        updateRegionsList();
+        redrawOverlay();
+      };
+      item.appendChild(del);
+      regionsList.appendChild(item);
+    });
+  }
+
+  document.getElementById("undoBtn").onclick = () => {
+    if (regions.length === 0) return;
+    regions.pop();
+    updateRegionsList();
+    redrawOverlay();
+  };
+
+  document.getElementById("clearRegionsBtn").onclick = () => {
+    regions = [];
+    updateRegionsList();
+    redrawOverlay();
+    setStatus("تم مسح المناطق", "ok");
+  };
+
+  // ===== تحميل FFmpeg =====
+  async function loadFFmpeg() {
+    if (ffmpegInstance) return ffmpegInstance;
+
+    setStatus("جاري تحميل محرك المعالجة... (قد يأخذ دقيقة أول مرة)", "work");
+
+    const { FFmpeg } = window.FFmpegWASM;
+    const { toBlobURL, fetchFile } = window.FFmpegUtil;
+
+    const ffmpeg = new FFmpeg();
+
+    ffmpeg.on("log", ({ message }) => {
+      console.log("[FFmpeg]", message);
+    });
+
+    ffmpeg.on("progress", ({ progress }) => {
+      if (progress > 0 && progress <= 1) {
+        progressInner.style.width = (progress * 100).toFixed(1) + "%";
+      }
+    });
+
+    const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+    });
+
+    ffmpegInstance = ffmpeg;
+    return ffmpeg;
+  }
+
+  // ===== المعالجة الرئيسية =====
+  const processBtn = document.getElementById("processBtn");
+  const stopBtn = document.getElementById("stopBtn");
+
+  processBtn.onclick = async () => {
+    if (regions.length === 0) {
+      setStatus("ارسم منطقة واحدة على الأقل", "err");
+      return;
+    }
+    if (!sourceURL) return;
+
+    processBtn.disabled = true;
+    stopBtn.disabled = false;
+    isProcessing = true;
+    progressBar.style.display = "block";
+    progressInner.style.width = "0%";
+    result.style.display = "none";
+
+    try {
+      const ffmpeg = await loadFFmpeg();
+      const { fetchFile } = window.FFmpegUtil;
+
+      setStatus("جاري تحميل الفيديو إلى المحرك...", "work");
+
+      // تحميل الملف الأصلي
+      const file = videoInput.files[0];
+      const inputName = "input" + (file.name.match(/\.\w+$/) || [".mp4"])[0];
+      await ffmpeg.writeFile(inputName, await fetchFile(file));
+
+      // بناء فلتر delogo لكل منطقة
+      const filters = regions.map((r) => {
+        const x = Math.max(0, Math.floor(r.x));
+        const y = Math.max(0, Math.floor(r.y));
+        const w = Math.max(2, Math.floor(r.w));
+        const h = Math.max(2, Math.floor(r.h));
+        // نطرح 1 من الأبعاد لضمان عدم تجاوز الحدود
+        return `delogo=x=${x}:y=${y}:w=${w}:h=${h}:show=0`;
+      });
+
+      const filterChain = filters.join(",");
+
+      const outputName = "output.mp4";
+
+      setStatus("جاري المعالجة... لا تغلق التطبيق", "work");
+
+      await ffmpeg.exec([
+        "-i", inputName,
+        "-vf", filterChain,
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-crf", "23",
+        "-c:a", "copy",
+        "-movflags", "+faststart",
+        outputName
+      ]);
+
+      if (!isProcessing) return;
+
+      setStatus("جاري حفظ النتيجة...", "work");
+      const data = await ffmpeg.readFile(outputName);
+
+      const mimeType = "video/mp4";
+      resultBlob = new Blob([data.buffer], { type: mimeType });
+
+      const url = URL.createObjectURL(resultBlob);
+      resultVideo.src = url;
+      result.style.display = "block";
+      progressInner.style.width = "100%";
+      setStatus("✔ تمت الإزالة — يمكنك حفظ الفيديو", "ok");
+
+      // تنظيف
+      try {
+        await ffmpeg.deleteFile(inputName);
+        await ffmpeg.deleteFile(outputName);
+      } catch(e) {}
+
+    } catch (err) {
+      console.error(err);
+      setStatus("خطأ أثناء المعالجة: " + (err.message || err), "err");
+    } finally {
+      processBtn.disabled = false;
+      stopBtn.disabled = true;
+      isProcessing = false;
+    }
+  };
+
+  stopBtn.onclick = () => {
+    isProcessing = false;
+    setStatus("تم الإيقاف", "err");
+    processBtn.disabled = false;
+    stopBtn.disabled = true;
+  };
+
+  // ===== الحفظ =====
+  document.getElementById("downloadBtn").onclick = () => {
+    if (!resultBlob) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(resultBlob);
+    a.download = "clean_video_" + Date.now() + ".mp4";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+})();
+</script>
+</body>
+</html>
